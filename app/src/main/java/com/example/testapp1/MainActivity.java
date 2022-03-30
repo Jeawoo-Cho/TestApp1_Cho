@@ -55,7 +55,6 @@ public class MainActivity extends AppCompatActivity {
             mapView.addPolyline(polyline); // 폴리라인 객체 지도에 올리기
         }
 
-
         // 지도뷰의 중심좌표와 줌레벨을 Polyline이 모두 나오도록 조정.
         mapView.fitMapViewAreaToShowAllPolylines();
 

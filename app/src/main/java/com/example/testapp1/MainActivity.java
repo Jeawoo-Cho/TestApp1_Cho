@@ -21,6 +21,7 @@ import net.daum.mf.map.api.MapView; //카카오 맵뷰 임포트
 import android.util.Log;
 import android.view.ViewGroup; //뷰 그룹 임포트
 import android.widget.TextView;
+import android.support.v7.widget.SearchView;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -44,40 +45,56 @@ public class MainActivity extends AppCompatActivity {
         //트래킹 모드
         //mapView.setCurrentLocationTrackingMode(MapView.CurrentLocationTrackingMode.TrackingModeOnWithoutHeading);
 
-        //Coordparse (테스트)
-        CoordParser apiData = new CoordParser();
-        ArrayList<CoorData> dataArr = apiData.getData();
-
-        // Polyline 좌표 지정.
-        for(int i=0; i<dataArr.size(); i++) { // 매 CoorData마다 폴리라인 객체 생성
-            MapPolyline polyline = new MapPolyline();
-            polyline.setLineColor(Color.argb(128, i*10, 51, 0));
-            polyline.setTag(1000);
-            for(int x=0; x<dataArr.get(i).Coords.length/2; x++) {
-                polyline.addPoint(MapPoint.mapPointWithGeoCoord(Double.parseDouble(dataArr.get(i).Coords[x*2+1]), Double.parseDouble(dataArr.get(i).Coords[x*2])));
-            }
-            mapView.addPolyline(polyline); // 폴리라인 객체 지도에 올리기
-        }
-
-        // 지도뷰의 중심좌표와 줌레벨을 Polyline이 모두 나오도록 조정.
-        mapView.fitMapViewAreaToShowAllPolylines();
-
         //Searchparser(테스트)
         SearchParser searchParser = new SearchParser();
-        ArrayList<SearchCoord> scData = searchParser.getCoord("관악산");
-        String spString = scData.get(0).x + " " + scData.get(0).y;
+
+
+        //Coordparse (테스트)
+        CoordParser apiData = new CoordParser();
+
+
+        //PolyLineSeter클래스
+        PolylineSeter polylineSeter = new PolylineSeter();
+
 
         //텍스트뷰 (테스트)
         TextView textView1 = (TextView) findViewById(R.id.text1) ;
-        textView1.setText(spString);
+
+        //검색(SearchView) 테스트
+        SearchView searchView = findViewById(R.id.SearchView1);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String s) {
+                ArrayList<SearchCoord> scData = searchParser.getCoord(s);
+                ArrayList<CoorData> dataArr = apiData.getData(scData.get(0).SearchHelper());
+                polylineSeter.set_poly(mapView, dataArr);
+
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String s) {
+                return false;
+            }
+        });
 
     }
 
 }
 
+
+
 class SearchCoord {
     String x;
     String y;
+    public String SearchHelper() {
+        Double minX = Double.parseDouble(x)-0.01;
+        Double maxX = Double.parseDouble(x)+0.01;
+        Double minY = Double.parseDouble(y)-0.01;
+        Double maxY = Double.parseDouble(y)+0.01;
+        String result = minX.toString()+","+minY.toString()+","+maxX.toString()+","+maxY.toString()+")";
+        return result;
+    }
 }
 
 class SearchParser {
@@ -203,7 +220,7 @@ class CoorData {
 }
 
 class CoordParser {
-    public ArrayList<CoorData> getData() {
+    public ArrayList<CoorData> getData(String boxData) {
         //return data 부분
         ArrayList<CoorData> dataArr = new ArrayList<CoorData>();
         Thread t = new Thread() {
@@ -211,7 +228,7 @@ class CoordParser {
             public  void run() {
                 try {
                     //요청 Url
-                    String fullurl = "https://api.vworld.kr/req/data?service=data&version=2.0&request=getfeature&key=F931BD24-945F-3AA9-8CB7-853B5D40C5A8&domain=http://localhost:8080&format=xml&errorformat=xml&size=10&page=1&data=LT_L_FRSTCLIMB&geomfilter=BOX(126.96,37.46,126.98,37.48)&buffer=10&columns=sec_len,up_min,down_min,ag_geom,start_z,end_z,cat_nam&geometry=true&attribute=false&crs=epsg:4326";
+                    String fullurl = "https://api.vworld.kr/req/data?service=data&version=2.0&request=getfeature&key=F931BD24-945F-3AA9-8CB7-853B5D40C5A8&domain=http://localhost:8080&format=xml&data=LT_L_FRSTCLIMB&crs=epsg:4326&geomfilter=BOX("+boxData;
                     URL url = new URL(fullurl);
                     InputStream is = url.openStream();
 
@@ -268,5 +285,24 @@ class CoordParser {
         }
 
         return dataArr;
+    }
+}
+
+class PolylineSeter {
+    public void set_poly(MapView mapView, ArrayList<CoorData> dataArr) {
+        // Polyline 좌표 지정.
+        mapView.removeAllPolylines();
+        for(int i=0; i<dataArr.size(); i++) { // 매 CoorData마다 폴리라인 객체 생성
+            MapPolyline polyline = new MapPolyline();
+            polyline.setLineColor(Color.argb(128, i*10, 51, 0));
+            polyline.setTag(1000);
+            for(int x=0; x<dataArr.get(i).Coords.length/2; x++) {
+                polyline.addPoint(MapPoint.mapPointWithGeoCoord(Double.parseDouble(dataArr.get(i).Coords[x*2+1]), Double.parseDouble(dataArr.get(i).Coords[x*2])));
+            }
+            mapView.addPolyline(polyline); // 폴리라인 객체 지도에 올리기
+        }
+
+        // 지도뷰의 중심좌표와 줌레벨을 Polyline이 모두 나오도록 조정.
+        mapView.fitMapViewAreaToShowAllPolylines();
     }
 }
